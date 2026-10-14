@@ -1,0 +1,88 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* PKKMB Sentiment Evaluation - Dark Mode Elegan Palette
+   Penerapan Aturan Warna 60-30-10:
+   - 60% Dominan (Background/Kanvas Utama): #273338 (Dark Slate / Charcoal Green)
+   - 30% Sekunder (Card, Container, Struktur): #2B5748 (Deep Forest Green / Pine) didukung #618764 (Medium Sage)
+   - 10% Aksen (Tombol Aksi Utama, Badge Pop, Fokus): #9CB080 (Light Sage / Pistachio)
+   Semua warna menggunakan format HSL sesuai standar Tailwind CSS. */
+
+@layer base {
+  :root,
+  .dark {
+    /* 60% Dominan: #273338 (Dark Slate) */
+    --background: 198 18% 19%;
+    --foreground: 85 20% 96%;
+
+    /* 30% Sekunder: #2B5748 (Deep Forest) untuk Card & Container */
+    --card: 160 34% 25%;
+    --card-foreground: 85 20% 96%;
+
+    --popover: 160 34% 23%;
+    --popover-foreground: 85 20% 96%;
+
+    /* 10% Aksen: #9CB080 (Light Sage) untuk Tombol Utama & Highlight */
+    --primary: 85 23% 60%;
+    --primary-foreground: 198 25% 14%;
+    --primary-glow: 85 30% 72%;
+
+    /* Sekunder Pendukung: #618764 (Medium Sage) */
+    --secondary: 125 16% 36%;
+    --secondary-foreground: 85 20% 96%;
+
+    /* Muted & Neutral Elements (Turunan #273338 & #618764) */
+    --muted: 198 16% 24%;
+    --muted-foreground: 125 12% 70%;
+
+    /* Aksen Pendukung (Card Pill & Active Nav) */
+    --accent: 160 30% 32%;
+    --accent-foreground: 85 25% 94%;
+
+    --destructive: 0 65% 58%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Sentiment colors: harmonis dengan tema dark nature */
+    --sentiment-positive: 135 50% 64%;
+    --sentiment-positive-bg: 140 38% 18%;
+    --sentiment-negative: 4 70% 66%;
+    --sentiment-negative-bg: 4 45% 18%;
+    --sentiment-neutral: 38 68% 64%;
+    --sentiment-neutral-bg: 38 45% 18%;
+
+    /* Borders & Inputs */
+    --border: 160 22% 33%;
+    --input: 160 22% 33%;
+    --ring: 85 23% 60%;
+
+    --radius: 0.5rem;
+
+    /* Gradients bernuansa 60-30-10 */
+    --gradient-hero: linear-gradient(135deg, hsl(85 23% 60%) 0%, hsl(125 16% 45%) 100%);
+    --gradient-soft: linear-gradient(180deg, hsl(198 18% 23%) 0%, hsl(198 18% 19%) 100%);
+    --shadow-elegant: 0 10px 28px -6px hsl(0 0% 0% / 0.5);
+    --shadow-card: 0 4px 14px 0 hsl(0 0% 0% / 0.3), 0 1px 3px -1px hsl(0 0% 0% / 0.25);
+
+    /* Sidebar Variables */
+    --sidebar-background: 198 18% 19%;
+    --sidebar-foreground: 85 20% 96%;
+    --sidebar-primary: 85 23% 60%;
+    --sidebar-primary-foreground: 198 25% 14%;
+    --sidebar-accent: 160 30% 32%;
+    --sidebar-accent-foreground: 85 25% 94%;
+    --sidebar-border: 160 22% 33%;
+    --sidebar-ring: 85 23% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
