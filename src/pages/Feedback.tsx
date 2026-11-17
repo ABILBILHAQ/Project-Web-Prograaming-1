@@ -26,6 +26,8 @@ import {
 import {
   addStoredFeedback,
   addBatchStoredFeedbacks,
+  submitFeedbackWithSync,
+  bulkSubmitFeedbackWithSync,
   getAdminSession,
 } from "@/lib/feedbackStore";
 import { toast } from "sonner";
@@ -272,13 +274,9 @@ const Feedback = () => {
 
       await Promise.all(Array.from({ length: concurrency }, worker));
 
-      const inserted = addBatchStoredFeedbacks(toInsert);
+      const inserted = await bulkSubmitFeedbackWithSync(toInsert);
 
-      try {
-        await supabase.from("feedback").insert(toInsert);
-      } catch {}
-
-      toast.success(`Berhasil mengimpor ${inserted.length} data feedback.`);
+      toast.success(`Berhasil mengimpor ${inserted.length} data feedback ke database.`);
     } catch (e: any) {
       toast.error(e?.message || "Gagal membaca file");
     } finally {
@@ -305,7 +303,7 @@ const Feedback = () => {
     try {
       const aiResult = await analyzeSentimentWithGemini(comment);
 
-      addStoredFeedback({
+      await submitFeedbackWithSync({
         name: name || null,
         prodi,
         comment,
@@ -313,18 +311,8 @@ const Feedback = () => {
         confidence: aiResult.confidence,
       });
 
-      try {
-        await supabase.from("feedback").insert({
-          name: name || null,
-          prodi,
-          comment,
-          sentiment: aiResult.sentiment,
-          confidence: aiResult.confidence,
-        });
-      } catch {}
-
       setResult(aiResult);
-      toast.success("Feedback Anda berhasil dikirim dan tersimpan.");
+      toast.success("Feedback Anda berhasil dikirim dan tersimpan di database MySQL.");
     } catch (err) {
       console.error("Submit error:", err);
       toast.error("Terjadi kendala saat menyimpan feedback.");

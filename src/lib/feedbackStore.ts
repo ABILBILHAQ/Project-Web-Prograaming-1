@@ -1,4 +1,11 @@
 import type { Sentiment } from "./gemini";
+import {
+  fetchFeedbacksApi,
+  createFeedbackApi,
+  bulkCreateFeedbackApi,
+  deleteFeedbackApi,
+  deleteAllFeedbackApi,
+} from "./api";
 
 export interface FeedbackRow {
   id: string;
@@ -245,4 +252,53 @@ export function clearAdminSession(): void {
     localStorage.removeItem(ADMIN_SESSION_KEY);
     window.dispatchEvent(new CustomEvent("pkkmb-auth-change", { detail: null }));
   }
+}
+
+// === SYNCHRONIZATION WITH MYSQL BACKEND ===
+
+export async function syncFeedbacksFromBackend(): Promise<FeedbackRow[]> {
+  try {
+    const res = await fetchFeedbacksApi({ limit: 500 });
+    if (res && res.data && res.data.length > 0) {
+      saveStoredFeedbacks(res.data);
+      return res.data;
+    }
+  } catch (e) {
+    console.warn("Gagal sync feedback dari MySQL:", e);
+  }
+  return getStoredFeedbacks();
+}
+
+export async function submitFeedbackWithSync(
+  data: Omit<FeedbackRow, "id" | "created_at">
+): Promise<FeedbackRow> {
+  const apiResult = await createFeedbackApi(data);
+  if (apiResult) {
+    const current = getStoredFeedbacks();
+    const updated = [apiResult, ...current.filter((c) => c.id !== apiResult.id)];
+    saveStoredFeedbacks(updated);
+    return apiResult;
+  }
+  return addStoredFeedback(data);
+}
+
+export async function bulkSubmitFeedbackWithSync(
+  items: Array<Omit<FeedbackRow, "id" | "created_at">>
+): Promise<FeedbackRow[]> {
+  const bulkRes = await bulkCreateFeedbackApi(items);
+  if (bulkRes && bulkRes.success) {
+    const refreshed = await syncFeedbacksFromBackend();
+    return refreshed;
+  }
+  return addBatchStoredFeedbacks(items);
+}
+
+export async function deleteFeedbackWithSync(id: string): Promise<void> {
+  await deleteFeedbackApi(id);
+  deleteStoredFeedback(id);
+}
+
+export async function deleteAllFeedbackWithSync(): Promise<void> {
+  await deleteAllFeedbackApi();
+  deleteAllStoredFeedbacks();
 }

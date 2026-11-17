@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Download, Search, Trash2, Loader2, AlertTriangle, Eye, Key, CheckCircle, RefreshCw, FileText } from "lucide-react";
+import { Download, Search, Trash2, Loader2, AlertTriangle, Eye, Key, CheckCircle, RefreshCw, FileText, FileSpreadsheet, FileDown } from "lucide-react";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -36,6 +39,9 @@ import {
   getStoredFeedbacks,
   deleteStoredFeedback,
   deleteAllStoredFeedbacks,
+  deleteFeedbackWithSync,
+  deleteAllFeedbackWithSync,
+  syncFeedbacksFromBackend,
   getAdminSession,
   type FeedbackRow,
 } from "@/lib/feedbackStore";
@@ -137,12 +143,9 @@ const Admin = () => {
     }
 
     try {
-      const { data: sbData, error } = await supabase
-        .from("feedback")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (!error && sbData && sbData.length > 0) {
-        setData(sbData as FeedbackRow[]);
+      const fresh = await syncFeedbacksFromBackend();
+      if (fresh && fresh.length > 0) {
+        setData(fresh);
       }
     } catch {}
     setLoading(false);
@@ -150,23 +153,17 @@ const Admin = () => {
 
   const handleDelete = async () => {
     if (!deleteId) return;
-    deleteStoredFeedback(deleteId);
-    try {
-      await supabase.from("feedback").delete().eq("id", deleteId);
-    } catch {}
+    await deleteFeedbackWithSync(deleteId);
     setData((d) => d.filter((x) => x.id !== deleteId));
-    toast.success("Feedback berhasil dihapus");
+    toast.success("Feedback berhasil dihapus dari database");
     setDeleteId(null);
   };
 
   const handleDeleteAll = async () => {
     setDeletingAll(true);
-    deleteAllStoredFeedbacks();
-    try {
-      await supabase.from("feedback").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-    } catch {}
+    await deleteAllFeedbackWithSync();
     setData([]);
-    toast.success("Seluruh data feedback berhasil dibersihkan");
+    toast.success("Seluruh data feedback berhasil dibersihkan dari database");
     setDeletingAll(false);
     setShowDeleteAll(false);
   };
@@ -211,6 +208,131 @@ const Admin = () => {
     a.click();
     URL.revokeObjectURL(url);
     toast.success("Data berhasil diekspor ke format CSV");
+  };
+
+  const exportExcel = () => {
+    const rows = filtered.map((f) => ({
+      Nama: f.name || "Anonim",
+      "Program Studi": f.prodi,
+      Komentar: f.comment,
+      Sentimen:
+        f.sentiment === "positive"
+          ? "Positif"
+          : f.sentiment === "negative"
+          ? "Negatif"
+          : "Netral",
+      "Confidence (%)": Math.round(f.confidence * 100),
+      Tanggal: format(new Date(f.created_at), "dd MMM yyyy, HH:mm"),
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+
+    // Set column widths
+    ws["!cols"] = [
+      { wch: 20 }, // Nama
+      { wch: 25 }, // Program Studi
+      { wch: 60 }, // Komentar
+      { wch: 12 }, // Sentimen
+      { wch: 15 }, // Confidence
+      { wch: 22 }, // Tanggal
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Feedback PKKMB");
+    XLSX.writeFile(wb, `feedback-pkkmb-${format(new Date(), "yyyyMMdd-HHmm")}.xlsx`);
+    toast.success("Data berhasil diekspor ke format Excel (.xlsx)");
+  };
+
+  const exportPDF = () => {
+    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+
+    // Header
+    doc.setFillColor(30, 41, 59);
+    doc.rect(0, 0, 297, 25, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("Laporan Feedback Evaluasi PKKMB", 14, 12);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.text(
+      `Dicetak pada: ${format(new Date(), "dd MMMM yyyy, HH:mm")}  |  Total data: ${filtered.length} feedback`,
+      14,
+      20
+    );
+
+    // Summary stats
+    const positif = filtered.filter((f) => f.sentiment === "positive").length;
+    const negatif = filtered.filter((f) => f.sentiment === "negative").length;
+    const netral = filtered.filter((f) => f.sentiment === "neutral").length;
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text(
+      `Positif: ${positif}  |  Netral: ${netral}  |  Negatif: ${negatif}`,
+      14,
+      32
+    );
+
+    const tableRows = filtered.map((f) => [
+      f.name || "Anonim",
+      f.prodi,
+      f.comment.length > 120 ? f.comment.slice(0, 120) + "..." : f.comment,
+      f.sentiment === "positive" ? "Positif" : f.sentiment === "negative" ? "Negatif" : "Netral",
+      `${Math.round(f.confidence * 100)}%`,
+      format(new Date(f.created_at), "dd/MM/yyyy HH:mm"),
+    ]);
+
+    autoTable(doc, {
+      startY: 36,
+      head: [["Nama", "Program Studi", "Komentar", "Sentimen", "Conf.", "Tanggal"]],
+      body: tableRows,
+      styles: { fontSize: 7.5, cellPadding: 2.5, overflow: "linebreak" },
+      headStyles: {
+        fillColor: [30, 41, 59],
+        textColor: [255, 255, 255],
+        fontStyle: "bold",
+        fontSize: 8,
+      },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      columnStyles: {
+        0: { cellWidth: 28 },
+        1: { cellWidth: 38 },
+        2: { cellWidth: 110 },
+        3: { cellWidth: 22 },
+        4: { cellWidth: 16 },
+        5: { cellWidth: 32 },
+      },
+      didDrawCell: (data) => {
+        if (data.section === "body" && data.column.index === 3) {
+          const sentiment = filtered[data.row.index]?.sentiment;
+          if (sentiment === "positive") {
+            doc.setTextColor(22, 163, 74);
+          } else if (sentiment === "negative") {
+            doc.setTextColor(220, 38, 38);
+          } else {
+            doc.setTextColor(107, 114, 128);
+          }
+        }
+      },
+    });
+
+    // Footer
+    const pageCount = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(7);
+      doc.setTextColor(150, 150, 150);
+      doc.text(
+        `Halaman ${i} dari ${pageCount}  —  Sistem Feedback PKKMB`,
+        doc.internal.pageSize.getWidth() / 2,
+        doc.internal.pageSize.getHeight() - 5,
+        { align: "center" }
+      );
+    }
+
+    doc.save(`feedback-pkkmb-${format(new Date(), "yyyyMMdd-HHmm")}.pdf`);
+    toast.success("Laporan berhasil diekspor ke format PDF");
   };
 
   const handleGenerateSaran = async (row: FeedbackRow) => {
@@ -319,9 +441,31 @@ const Admin = () => {
                 <span className="h-2 w-2 rounded-full bg-amber-500 ml-1" title="API Key belum diatur" />
               )}
             </Button>
-            <Button onClick={exportCSV} variant="outline" size="sm" disabled={!filtered.length}>
+            <Button onClick={exportCSV} variant="outline" size="sm" disabled={!filtered.length} id="btn-export-csv">
               <Download className="mr-1.5 h-4 w-4" />
               Export CSV
+            </Button>
+            <Button
+              onClick={exportExcel}
+              variant="outline"
+              size="sm"
+              disabled={!filtered.length}
+              id="btn-export-excel"
+              className="gap-1.5 border-emerald-500/50 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:border-emerald-400/40 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              Export Excel
+            </Button>
+            <Button
+              onClick={exportPDF}
+              variant="outline"
+              size="sm"
+              disabled={!filtered.length}
+              id="btn-export-pdf"
+              className="gap-1.5 border-blue-500/50 text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:border-blue-400/40 dark:text-blue-400 dark:hover:bg-blue-950/40"
+            >
+              <FileDown className="h-4 w-4" />
+              Export PDF
             </Button>
             <Button
               onClick={() => setShowDeleteAll(true)}

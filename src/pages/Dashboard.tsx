@@ -18,7 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Layout } from "@/components/Layout";
 import { SentimentBadge, type Sentiment } from "@/components/SentimentBadge";
 import { supabase } from "@/integrations/supabase/client";
-import { getStoredFeedbacks } from "@/lib/feedbackStore";
+import { getStoredFeedbacks, syncFeedbacksFromBackend } from "@/lib/feedbackStore";
 import { formatDistanceToNow } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 
@@ -51,16 +51,15 @@ const Dashboard = () => {
         setLoading(false);
       }
 
-      // 2. Revalidasi di latar belakang dari Supabase jika online
+      // 2. Revalidasi data terbaru langsung dari database MySQL
       try {
-        const { data: sbData, error } = await supabase
-          .from("feedback")
-          .select("*")
-          .order("created_at", { ascending: false });
-        if (!error && sbData && sbData.length > 0) {
-          setData(sbData as FeedbackRow[]);
+        const fresh = await syncFeedbacksFromBackend();
+        if (fresh && fresh.length > 0) {
+          setData(fresh);
         }
-      } catch {}
+      } catch (err) {
+        console.warn("Gagal memuat feedback dari database:", err);
+      }
       setLoading(false);
     };
 

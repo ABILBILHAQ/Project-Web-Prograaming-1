@@ -31,26 +31,233 @@ export function setGeminiApiKey(key: string): void {
   }
 }
 
-// Indonesian sentiment word dictionaries for robust local fallback
+// ─── Kamus Sentimen Indonesia (Formal + Gaul + Campuran) ─────────────────────
+//
+// Mencakup:
+//  • Bahasa Indonesia formal/baku
+//  • Bahasa gaul / slang anak muda (jaksel, medsos, kampus)
+//  • Singkatan & typo umum  (tks, thx, gws, otw, dll.)
+//  • Bahasa campuran Indo-English (mix language)
+//  • Ekspresi emosional medsos & chat (mantul, bestie, vibes, dsb.)
+
 const POSITIVE_WORDS = [
+  // ── Formal / Baku ──
   "bagus", "baik", "keren", "mantap", "hebat", "seru", "menyenangkan", "ramah",
   "bermanfaat", "membantu", "edukatif", "informatif", "puas", "terima kasih",
   "terimakasih", "apresiasi", "sukses", "rapi", "jelas", "kompak", "disiplin",
   "semangat", "asyik", "memuaskan", "senang", "teratur", "terkoordinasi",
-  "inspiratif", "berkesan", "menarik", "luar biasa", "mantul", "top", "suka",
-  "nyaman", "tertib", "sigap", "bersahabat", "positif", "salut", "kerjasama"
+  "inspiratif", "berkesan", "menarik", "luar biasa", "top", "suka",
+  "nyaman", "tertib", "sigap", "bersahabat", "positif", "salut", "kerjasama",
+  "terbaik", "unggul", "andal", "prima", "optimal", "mumpuni", "mengesankan",
+  "mengagumkan", "memukau", "istimewa", "gemilang", "cemerlang", "elegan",
+  "berkualitas", "terampil", "profesional", "tanggap", "responsif", "aktif",
+  "produktif", "kreatif", "inovatif", "efektif", "efisien", "terorganisir",
+  "kompeten", "menyentuh", "hangat", "harmonis", "solid", "antusias",
+  "bersemangat", "gembira", "bahagia", "ceria", "meriah", "hidup",
+  "berguna", "berfaedah", "mendukung", "memberdayakan",
+
+  // ── Bahasa Gaul / Slang ──
+  "mantul", "mantab", "mantep", "mantepp", "mantapp",
+  "kece", "kece badai", "kece parah",
+  "asik", "asiik", "asikk", "asyikk",
+  "gokil", "goks", "gokss",
+  "ajib", "ajibb", "ajibbb",
+  "cakep", "cakeppp",
+  "jos", "joss", "josss", "jos gandos",
+  "okee", "okeee", "oke banget", "oke bgt",
+  "wkwk", "wkwkwk", "haha", "hahaha",        // tawa = sinyal positif
+  "uwu", "lucu", "gemesin", "gemesh", "gemes",
+  "sabi", "sabii",                             // "bisa" (dibalik) = setuju/oke
+  "gaskeun", "gaspol", "gas",                  // semangat / positif
+  "cuss", "cusss",
+  "buset", "busett",                           // ekspresi takjub positif
+  "sultan", "dewa", "legend", "legenda",
+  "auto seneng", "auto happy",
+  "niat banget", "niat bgt",
+  "totalitas", "totality",
+  "sat set", "satset", "sat set sat set",      // efisien & cepat
+  "receh", "ngakak",                           // konteks lucu = positif
+  "kelar", "beres",                            // selesai dengan baik
+  "juara", "champion",
+  "worth it", "worthit",
+  "blessed", "bersyukur", "grateful",
+  "healing", "refreshing",
+  "relate", "relatable",
+  "slay", "slaying",
+  "bestie", "besttt",
+  "goals", "life goals",
+  "baper positif",
+  "amaze", "amazed", "amazing",
+  "proud", "bangga",
+
+  // ── Singkatan Gaul ──
+  "tks", "thx", "thanks", "thankyou", "makasih", "makasi", "maksi",
+  "mksih", "tengkyu", "tengkyuu", "tenkyu", "nuhun", "maturnuwun",
+  "gpp", "gapapa", "ga papa",                  // konteks positif: "gak masalah"
+  "otw", "lfg",                                // "on the way", "lets go" = antusias
+  "yoi", "yoii", "yess", "yesss",
+  "sipp", "sippp", "siap", "siaap",
+  "woke", "wokee",
+  "bet", "bett", "bgt", "bngett", "bngt", "banget", "bener",
+  "emg", "emang", "emng",                      // penegasan
+  "pol", "poll",                               // "penuh" = intensifier positif
+  "pake banget", "pake bgt",
+  "sih", "sihh",                               // penegasan lembut
+  "deh", "dehh",
+
+  // ── Campuran Indo-English ──
+  "good", "great", "nice", "cool", "awesome", "excellent", "perfect",
+  "love", "lovely", "wonderful", "fantastic", "superb", "outstanding",
+  "well done", "well organized", "well prepared",
+  "happy", "enjoy", "enjoyed", "enjoyable", "fun",
+  "helpful", "useful", "clear", "organized", "smooth",
+  "impressive", "incredible", "brilliant", "remarkable",
+  "best", "better", "improved",
+  "so good", "very good", "really good", "pretty good",
+  "so fun", "very fun",
+  "highly recommended", "recommended",
+  "satisfied", "comfortable",
+  "worth", "valuable",
+  "support", "supportive",
+  "friendly", "kind", "caring",
+  "excited", "exciting",
+  "motivated", "inspiring",
+  "thank you", "thank u", "tq",
+  "appreciate", "appreciated",
+
+  // ── Ekspresi Campuran Gaul+English ──
+  "good vibes", "vibes nya", "vibes nya bagus", "vibes nya enak",
+  "literally bagus", "literally keren",
+  "so worth it",
+  "the best sih", "the best deh", "the best lah",
+  "so proud",
+  "i love it", "love banget", "love bgt",
+  "super keren", "super bagus", "super seru",
+  "ngl bagus", "ngl keren",                    // "not gonna lie"
+  "no cap bagus", "no cap keren",
+  "real talk bagus",
+  "lowkey suka", "lowkey bagus",
+  "highkey suka", "highkey bagus",
+  "it hits different",
 ];
 
 const NEGATIVE_WORDS = [
+  // ── Formal / Baku ──
   "buruk", "jelek", "kecewa", "membosankan", "bosan", "lama", "lambat", "molor",
   "panas", "kacau", "rusak", "kurang", "sulit", "susah", "tidak jelas", "gak jelas",
   "marah", "senioritas", "bentak", "bentakan", "tegang", "lelah", "capek", "letih",
   "dingin", "kotor", "bau", "sempit", "gaduh", "bising", "membingungkan",
   "menyusahkan", "memberatkan", "tertekan", "stress", "stres", "telat", "tidak ada",
-  "kurang siap", "buruk sekali", "sia-sia", "boros", "rugi", "antre", "antri", "ribet"
+  "kurang siap", "buruk sekali", "sia-sia", "boros", "rugi", "antre", "antri", "ribet",
+  "mengecewakan", "memalukan", "mengesalkan", "menjengkelkan", "menyebalkan",
+  "menakutkan", "mengintimidasi", "menekan", "mempermalukan", "merugikan",
+  "tidak nyaman", "tidak memadai", "tidak layak", "tidak ramah", "tidak siap",
+  "berantakan", "amburadul", "semrawut", "acakadut", "kacau balau",
+  "monoton", "membosankan", "menjenuhkan", "menjemukan",
+  "terlalu lama", "terlalu panas", "terlalu singkat", "terlalu banyak",
+  "tidak terorganisir", "tidak terkoordinasi", "tidak profesional",
+  "berlebihan", "berbelit", "bertele-tele",
+  "mengantuk", "ngantuk",
+
+  // ── Bahasa Gaul / Slang ──
+  "zonk", "zonkk",
+  "garing", "garingg",                         // membosankan / tidak lucu
+  "cringe", "cringee",
+  "receh banget",                               // membosankan (konteks negatif)
+  "bete", "bt", "bete banget", "bt bgt",
+  "males", "mager", "males banget", "mager bgt",
+  "cape", "capee", "capek banget", "capek bgt", "cape bgt",
+  "ngeselin", "nyebelin", "sebel", "sebell",
+  "kesel", "kesell", "kesal bgt",
+  "emosi", "emosii",
+  "baper", "baper negatif",
+  "drama", "dramatis", "lebay", "lebai", "alay",
+  "gaje", "ga jelas", "gak jelas", "nggak jelas",
+  "absurd", "absurdd",
+  "ampun", "ampunn", "ampun dah",
+  "anjir", "anjirr", "anjay",                  // ekspresi kesal
+  "parah", "parahhh", "parah sih", "parah banget",
+  "ngeri", "ngerii",                            // konteks negatif
+  "ambyar",                                     // hancur / kacau
+  "gabut", "gabud",                             // tidak produktif
+  "php",                                        // pemberi harapan palsu
+  "ghosting",                                   // tidak direspon
+  "skip", "skipp",
+  "auto males", "auto bete",
+  "nangis", "nangis sih", "pengen nangis",
+  "ketiduran",                                  // membosankan sampai tidur
+  "buang waktu", "buang buang waktu",
+  "nyiksa", "menyiksa",
+  "bikin pusing", "bikin mumet", "mumet",
+  "bikin emosi", "bikin kesel",
+  "bikin bete", "bikin males",
+  "bikin capek", "bikin lelah",
+  "ngebosenin", "bikin bosen",
+  "ga guna", "gak guna", "gak berguna", "percuma",
+  "zonk abis", "fail",
+  "mending", "mendingan",                       // lebih baik X = kritik Y
+  "yaudahlah", "yaudah", "ya sudahlah",         // pasrah / kecewa
+  "cupu",
+
+  // ── Singkatan Gaul ──
+  "tdr", "tidur",                               // ketiduran karena bosan
+  "smh",                                        // "shaking my head" = kecewa
+  "fml",                                        // frustrasi
+  "wtf", "wth",
+  "zzz",                                        // bosan / ngantuk
+  "meh", "mehh",
+
+  // ── Campuran Indo-English ──
+  "bad", "worst", "terrible", "awful", "horrible", "poor",
+  "boring", "bored", "tiring", "tired", "exhausting", "exhausted",
+  "disappointed", "disappointing", "frustrating", "frustrated",
+  "confusing", "confused", "unclear", "messy", "chaotic",
+  "disorganized", "unprepared", "unprofessional",
+  "uncomfortable", "unpleasant", "unbearable",
+  "overcrowded", "overloaded", "overwhelming",
+  "slow", "late", "delayed", "wasted",
+  "useless", "pointless", "meaningless",
+  "unfair", "unfriendly", "rude", "harsh",
+  "so bad", "very bad", "really bad", "so boring",
+  "not good", "not fun", "not clear", "not helpful",
+  "waste of time", "waste",
+  "too long", "too hot", "too short", "too much",
+  "no fun", "no good",
+  "trash", "trashh", "sampah",
+
+  // ── Ekspresi Campuran Gaul+English ──
+  "literally boring", "literally capek",
+  "so cringe", "cringe banget", "cringe bgt",
+  "lowkey bete", "lowkey males",
+  "highkey kesel",
+  "ngl jelek", "ngl boring",
+  "no cap buruk", "no cap jelek",
+  "it sucks", "sucks", "suck",
+  "not worth it",
+  "big yikes", "yikes",
+  "red flag", "red flags",
+  "toxic", "toxicc",
+  "mid", "midd",                               // biasa-biasa aja / mengecewakan
+  "dead inside",
+  "i cant", "i can't",
+  "sus", "sussy",
+  "bruh", "bruhh",                             // ekspresi kecewa/bingung
+  "cap", "capp",                               // bohong / palsu
 ];
 
-const NEGATION_WORDS = ["tidak", "bukan", "kurang", "jangan", "belum", "tak", "nggak", "ga"];
+const NEGATION_WORDS = [
+  // ── Formal ──
+  "tidak", "bukan", "kurang", "jangan", "belum", "tak", "tanpa",
+  // ── Gaul / Singkatan ──
+  "nggak", "ga", "gak", "gk", "g", "nda", "ndak", "ngga", "enggak", "engga",
+  "kagak", "kagag", "kaga",
+  "gada", "gaada", "gak ada", "ga ada",
+  "gamau", "gak mau", "ga mau", "ogah",
+  "gabisa", "gak bisa", "ga bisa", "gabsa",
+  // ── English ──
+  "not", "no", "never", "dont", "don't", "can't", "cant", "won't", "wont",
+  "none", "nothing", "neither", "hardly",
+];
 
 export function analyzeSentimentLocally(text: string): SentimentAnalysisResult {
   const lower = text.toLowerCase();
@@ -59,10 +266,24 @@ export function analyzeSentimentLocally(text: string): SentimentAnalysisResult {
   let positiveScore = 0;
   let negativeScore = 0;
 
+  // 1. Cek frasa multi-kata (bigram/trigram) dulu — prioritas lebih tinggi
+  for (const phrase of POSITIVE_WORDS) {
+    if (phrase.includes(" ") && lower.includes(phrase)) {
+      positiveScore += 1.5;
+    }
+  }
+  for (const phrase of NEGATIVE_WORDS) {
+    if (phrase.includes(" ") && lower.includes(phrase)) {
+      negativeScore += 1.5;
+    }
+  }
+
+  // 2. Cek kata per-kata dengan deteksi negasi
   for (let i = 0; i < words.length; i++) {
     const word = words[i];
     const prevWord = i > 0 ? words[i - 1] : "";
-    const isNegated = NEGATION_WORDS.includes(prevWord);
+    const prevTwoWords = i > 1 ? `${words[i - 2]} ${words[i - 1]}` : prevWord;
+    const isNegated = NEGATION_WORDS.includes(prevWord) || NEGATION_WORDS.includes(prevTwoWords);
 
     if (POSITIVE_WORDS.includes(word)) {
       if (isNegated) {

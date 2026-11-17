@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Layout } from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { getAdminSession, setAdminSession } from "@/lib/feedbackStore";
+import { loginAdminApi } from "@/lib/api";
 import { toast } from "sonner";
 
 const DEFAULT_EMAIL = "admin@pkkmb.ac.id";
@@ -46,35 +47,29 @@ const Auth = () => {
 
     const cleanEmail = email.toLowerCase().trim();
 
-    // Prioritaskan akun admin default
-    if (cleanEmail === DEFAULT_EMAIL.toLowerCase() && password === DEFAULT_PASSWORD) {
-      setAdminSession(DEFAULT_EMAIL);
-      setLoading(false);
-      toast.success("Berhasil masuk sebagai Admin!");
-      navigate("/admin");
-      return;
-    }
-
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        // Jika server Supabase offline / error tetapi email admin, izinkan mode admin
-        if (cleanEmail === DEFAULT_EMAIL.toLowerCase() || cleanEmail.includes("admin")) {
-          setAdminSession(email);
-          toast.success("Berhasil masuk sebagai Admin!");
-          navigate("/admin");
-          return;
-        }
-        toast.error(error.message);
+      // 1. Coba login melalui API MySQL backend
+      const mysqlRes = await loginAdminApi(cleanEmail, password);
+      if (mysqlRes && mysqlRes.success && mysqlRes.user) {
+        setAdminSession(mysqlRes.user.email);
+        toast.success("Berhasil masuk sebagai Admin (MySQL)!");
+        navigate("/admin");
         return;
       }
-      setAdminSession(email);
-      toast.success("Berhasil masuk!");
-      navigate("/admin");
+
+      // 2. Fallback: Cek kredensial admin default
+      if (cleanEmail === DEFAULT_EMAIL.toLowerCase() && password === DEFAULT_PASSWORD) {
+        setAdminSession(DEFAULT_EMAIL);
+        toast.success("Berhasil masuk sebagai Admin!");
+        navigate("/admin");
+        return;
+      }
+
+      toast.error(mysqlRes?.error || "Email atau password admin salah");
     } catch (err) {
-      console.warn("Supabase auth offline:", err);
-      if (cleanEmail === DEFAULT_EMAIL.toLowerCase() || cleanEmail.includes("admin")) {
-        setAdminSession(email);
+      console.warn("Auth error:", err);
+      if (cleanEmail === DEFAULT_EMAIL.toLowerCase() && password === DEFAULT_PASSWORD) {
+        setAdminSession(DEFAULT_EMAIL);
         toast.success("Berhasil masuk sebagai Admin!");
         navigate("/admin");
       } else {
