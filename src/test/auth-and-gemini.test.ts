@@ -144,6 +144,51 @@ describe("Gemini & Sentiment Analysis Service", () => {
     expect(res.sentiment).toBe("positive");
   });
 
+  // ── Slang Viral, Kampus, Daerah & Jaksel Baru ──
+
+  it("should detect viral & campus positive slang: menyala abangku, gacor, materi daging, gercep, pw", () => {
+    const res = analyzeSentimentLocally("Menyala abangku! Pematerinya gacor parah, materi daging semua, panitianya gercep dan tempatnya pw banget.");
+    expect(res.sentiment).toBe("positive");
+  });
+
+  it("should detect regional positive slang: mbois pol, hade pisan, rancak bana, matur nuwun", () => {
+    const res = analyzeSentimentLocally("Acaranya mbois pol, hade pisan pokonya rancak bana, matur nuwun kakak panitia!");
+    expect(res.sentiment).toBe("positive");
+  });
+
+  it("should detect positive slang modifier 'parah' after positive word: ramah parah, seru parah", () => {
+    const res = analyzeSentimentLocally("Kakak pendampingnya ramah parah dan gamesnya seru parah!");
+    expect(res.sentiment).toBe("positive");
+  });
+
+  it("should handle elongated words typed by netizens: seruuuuu, kerennnn, boseeennn, capekkkk", () => {
+    const pos = analyzeSentimentLocally("Acaranya seruuuuu dan kerennnn bangetttt!");
+    expect(pos.sentiment).toBe("positive");
+
+    const neg = analyzeSentimentLocally("Sumpah boseeennn dan capekkkk bangetttt di aula.");
+    expect(neg.sentiment).toBe("negative");
+  });
+
+  it("should detect campus negative slang: ngaret, jam karet, komdis jutek, sumuk, boncos waktu", () => {
+    const res = analyzeSentimentLocally("Rundown ngaret jam karet, ruangannya sumuk gerah pol, panitianya jutek dan ngegas mulu.");
+    expect(res.sentiment).toBe("negative");
+  });
+
+  it("should detect Jaksel & Gen-Z mixed expressions: jujurly, high effort, red flag, hectic parah, drained", () => {
+    const pos = analyzeSentimentLocally("Jujurly acaranya high effort banget, dapet insight baru dan absolute cinema!");
+    expect(pos.sentiment).toBe("positive");
+
+    const neg = analyzeSentimentLocally("Jujurly kecewa sih, jadwalnya hectic parah bikin social battery habis dan drained banget, big red flag.");
+    expect(neg.sentiment).toBe("negative");
+  });
+
+  it("should handle fused & bridged negations: gaseru, gak terlalu bagus, ga worth it, nggak bikin bosen", () => {
+    expect(analyzeSentimentLocally("Acaranya gaseru dan gajelas banget.").sentiment).toBe("negative");
+    expect(analyzeSentimentLocally("Materinya gak terlalu bagus dan ga worth it.").sentiment).toBe("negative");
+    expect(analyzeSentimentLocally("Untungnya pematerinya asik jadi nggak bikin bosen.").sentiment).toBe("positive");
+    expect(analyzeSentimentLocally("Panas banget sih emang di lapangan.").sentiment).toBe("negative");
+  });
+
   it("should generate structured recommendations", async () => {
     const res = await generateRecommendationWithGemini({
       comment: "Sound system di aula sering mati sehingga materi tidak terdengar.",
